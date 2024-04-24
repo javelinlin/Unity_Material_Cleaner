@@ -1,6 +1,8 @@
 # Unity_Material_Cleaner
 cleaner for unity's materials
 
+Removes useless textures, float, and color data from material assets
+
 ---
 # usage
 u can call api :  `ClearUpMatPropKWTools.ClearAllMat();`
