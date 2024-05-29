@@ -1,7 +1,6 @@
 // jave.lin : 2023/03/08 清理材质工具
 // refer to : Unity材质冗余序列化数据清理 https://zhuanlan.zhihu.com/p/366636732，但是这个参考的工具有 BUG，仅供参考
 
-using Sirenix.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +8,17 @@ using System.Reflection;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+
+public static class ClearupMatPropKWTools_EXT
+{
+    public static void AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> range)
+    {
+        foreach (T item in range)
+        {
+            hashSet.Add(item);
+        }
+    }
+}
 
 public class ClearUpMatPropKWTools : EditorWindow
 {
