@@ -9,6 +9,33 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
+public struct EnabledRegion : IDisposable
+{
+    private bool srcVale;
+    public EnabledRegion(bool val)
+    {
+        srcVale = GUI.enabled;
+        GUI.enabled = val;
+    }
+    public void Dispose()
+    {
+        GUI.enabled = srcVale;
+    }
+}
+
+public struct HorizontalRegion : IDisposable
+{
+    public HorizontalRegion(int test)
+    {
+        EditorGUILayout.BeginHorizontal();
+    }
+
+    public void Dispose()
+    {
+        EditorGUILayout.EndHorizontal();
+    }
+}
+
 public static class ClearupMatPropKWTools_EXT
 {
     public static void AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> range)
@@ -30,70 +57,96 @@ public class ClearUpMatPropKWTools : EditorWindow
         win.Show();
     }
 
+    private static string _RichTextWrapper(string msg, Color color)
+    {
+        return $"<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{msg}</color>";
+    }
+    
     private void OnGUI()
     {
-        var assetRootPath = string.Empty;
-        var new_assetRootPathObj = EditorGUILayout.ObjectField("AssetRootPath(Default : Assets)", assetRootPathObj, typeof(UnityEngine.Object), false);
-        if (assetRootPathObj != new_assetRootPathObj)
-        {
-            assetRootPathObj = new_assetRootPathObj;
-            //Debug.Log($"Role Folder Name : {assetRootPathObj.name}");
+        { // clear path
+            var assetRootPath = string.Empty;
+            using (var hr = new HorizontalRegion(1))
+            {
+                EditorGUILayout.LabelField("AssetRootPath(Default : Assets)", GUILayout.Width(190));
+                var new_assetRootPathObj =
+                    EditorGUILayout.ObjectField(_s_pAssetRootPathObj, typeof(UnityEngine.Object), false);
+                if (_s_pAssetRootPathObj != new_assetRootPathObj)
+                {
+                    _s_pAssetRootPathObj = new_assetRootPathObj;
+                    //Debug.Log($"Role Folder Name : {assetRootPathObj.name}");
+                }
+            }
+
+            if (_s_pAssetRootPathObj != null)
+            {
+                assetRootPath = AssetDatabase.GetAssetPath(_s_pAssetRootPathObj);
+            }
+
+            var temp_assetRootPath = string.IsNullOrEmpty(assetRootPath) ? "Assets" : assetRootPath;
+            if (GUILayout.Button("Clear mats of the Path"))
+            {
+                ClearUpByPath(temp_assetRootPath, All_Shader_Filter);
+            }
+
+            var color = Color.green;
+            ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
+            var clear_rang_str = temp_assetRootPath;
+            GUILayout.Label(
+                _RichTextWrapper($"You Will Clear {_RichTextWrapper(clear_rang_str, content_coolor)} path.", color),
+                new GUIStyle { richText = true });
         }
 
-        if (assetRootPathObj != null)
-        {
-            assetRootPath = AssetDatabase.GetAssetPath(assetRootPathObj);
+        { // clear materials of the scene obj
+            GameObject new_assetRootPathObj = null;
+            using (var hr = new HorizontalRegion(1))
+            {
+                EditorGUILayout.LabelField("GameObject(project asset, or scene object):", GUILayout.Width(250));
+                new_assetRootPathObj = EditorGUILayout.ObjectField(_s_pAssetOrSceneObj, typeof(UnityEngine.GameObject), true) as GameObject;
+                if (_s_pAssetOrSceneObj != new_assetRootPathObj)
+                {
+                    _s_pAssetOrSceneObj = new_assetRootPathObj;
+                    //Debug.Log($"Role Folder Name : {projectAssetOrSceneObj.name}");
+                }
+            }
+
+            using (var enabled = new EnabledRegion(new_assetRootPathObj != null))
+            {
+                if (GUILayout.Button("Clear mats of the GO"))
+                {
+                    ClearUpByGO(new_assetRootPathObj, All_Shader_Filter);
+                }
+            }
+
+            var color = Color.green;
+            ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
+            var goName = new_assetRootPathObj != null ? new_assetRootPathObj.name : "null";
+            GUILayout.Label(
+                _RichTextWrapper($"You Will Clear {_RichTextWrapper($"GO:{goName}", content_coolor)} path.", color),
+                new GUIStyle { richText = true });
         }
-
-        var temp_assetRootPath = string.IsNullOrEmpty(assetRootPath) ? "Assets" : assetRootPath;
-
-        // {
-        //     GUILayout.Label("Exclude Path:");
-        //     var src_enabled = GUI.enabled;
-        //     GUI.enabled = false;
-        //     EditorGUI.indentLevel++;
-        //     foreach (var excludePath in excludePathList)
-        //     {
-        //         GUILayout.TextField(excludePath);
-        //     }
-        //     EditorGUI.indentLevel--;
-        //     GUI.enabled = src_enabled;
-        // }
-
-        if (GUILayout.Button("Clear"))
-        {
-            ClearUp(temp_assetRootPath, All_Shader_Filter);
-        }
-        
-        var color = Color.green;
-        var clear_rang_str = temp_assetRootPath;
-        GUILayout.Label($"<color=#AAAAAA>You Will Clear [<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{clear_rang_str}</color>] path. </color>", new GUIStyle { richText = true });
-        
-        // if (GUILayout.Button("清理 PBR 材质"))
-        // {
-        //     ClearUp(temp_assetRootPath, PBR_Shader_Filter);
-        // }
     }
 
-    // [MenuItem("实用工具/Materials/执行清理所有材质")]
     // 这个可以在 发布打包资源前，调用一下
     public static void ClearAllMat()
     {
-        ClearUp("Assets", All_Shader_Filter);
+        ClearUpByPath("Assets", All_Shader_Filter);
     }
 
-    private static UnityEngine.Object assetRootPathObj;
-    private static List<string> excludePathList = new List<string>() 
+    private static System.Reflection.BindingFlags _s_vBindFlags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+    private static HashSet<string> _s_pHashSetValidatedKeywordhelper = new HashSet<string>();
+    private static List<string> _s_pListKeywordsTempHelper = new List<string>();
+    private static List<Renderer> _s_pListRenderHelper = new List<Renderer>();
+    
+    private static List<string> _s_pListExcludePathList = new List<string>()
     {
         // "Assets/CasualGame",
         // "Assets/Ultimate Game Tools",
         // "Assets/StreamingAssets",
     };
-    //
-    // private static bool PBR_Shader_Filter(Material mat)
-    // {
-    //     return mat.shader.name.Contains("PBR");
-    // }
+    
+    private static UnityEngine.Object _s_pAssetRootPathObj;
+    private static UnityEngine.GameObject _s_pAssetOrSceneObj;
 
     private static bool All_Shader_Filter(Material mat)
     {
@@ -116,6 +169,7 @@ public class ClearUpMatPropKWTools : EditorWindow
                 changed = true;
             }
         }
+
         return changed;
     }
 
@@ -152,7 +206,7 @@ public class ClearUpMatPropKWTools : EditorWindow
 
         return changed;
     }
-    private static System.Reflection.BindingFlags BindFlags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+    
     private static TResult Inovke<TResult>(Type type, string methodName, BindingFlags bindFlags, params object[] param)
     {
         if (type == null)
@@ -162,9 +216,6 @@ public class ClearUpMatPropKWTools : EditorWindow
             return default(TResult);
         return (TResult)method.Invoke(null, param);
     }
-
-    private static HashSet<string> validatedKW_Hashset_helper = new HashSet<string>();
-    private static List<string> keywords_temp_helper = new List<string>();
 
     private static bool ClearUpKeywords(Material mat, SerializedObject sObj, StringBuilder sbLog)
     {
@@ -183,8 +234,8 @@ public class ClearUpMatPropKWTools : EditorWindow
         //    sbLog.AppendLine($"ClearUpKeywords shaderPath : {shaderPath}, shader_kw : {string.Join(",", shader_kw.ToArray())}");
 
         // 通过反射获取材质所使用的Shader的Keyword列表
-        var globalKeywords = Inovke<string[]>(typeof(ShaderUtil), "GetShaderGlobalKeywords", BindFlags, mat.shader);
-        var localKeywords = Inovke<string[]>(typeof(ShaderUtil), "GetShaderLocalKeywords", BindFlags, mat.shader);
+        var globalKeywords = Inovke<string[]>(typeof(ShaderUtil), "GetShaderGlobalKeywords", _s_vBindFlags, mat.shader);
+        var localKeywords = Inovke<string[]>(typeof(ShaderUtil), "GetShaderLocalKeywords", _s_vBindFlags, mat.shader);
 
         if (globalKeywords == null || localKeywords == null)
         {
@@ -193,15 +244,15 @@ public class ClearUpMatPropKWTools : EditorWindow
             return false;
         }
 
-        validatedKW_Hashset_helper.Clear();
-        validatedKW_Hashset_helper.AddRange(globalKeywords);
-        validatedKW_Hashset_helper.AddRange(localKeywords);
+        _s_pHashSetValidatedKeywordhelper.Clear();
+        _s_pHashSetValidatedKeywordhelper.AddRange(globalKeywords);
+        _s_pHashSetValidatedKeywordhelper.AddRange(localKeywords);
 
         if (sbLog != null)
-            sbLog.AppendLine($"validated kw : {string.Join(",", validatedKW_Hashset_helper.ToArray())}");
+            sbLog.AppendLine($"validated kw : {string.Join(",", _s_pHashSetValidatedKeywordhelper.ToArray())}");
 
         // 删除材质中存在，但是Shader中却不存在的Keyword
-        var usingKeyworldList = keywords_temp_helper;
+        var usingKeyworldList = _s_pListKeywordsTempHelper;
         usingKeyworldList.Clear();
 
         // jave.lin : prechecking invalidate keywords
@@ -224,7 +275,7 @@ public class ClearUpMatPropKWTools : EditorWindow
         for (int i = usingKeyworldList.Count - 1; i > -1; i--)
         {
             var keyword = usingKeyworldList[i];
-            if (validatedKW_Hashset_helper.Contains(keyword))
+            if (_s_pHashSetValidatedKeywordhelper.Contains(keyword))
                 continue;
             if (sbLog != null)
                 sbLog.Append(keyword + ",");
@@ -264,26 +315,39 @@ public class ClearUpMatPropKWTools : EditorWindow
                         validKeywords.GetArrayElementAtIndex(validKeywords.arraySize - 1).stringValue = keyword;
                     }
                 }
-
             }
         }
 
         return changed;
     }
 
-    private static void ClearUp(string matRootPath, Func<Material, bool> filter = null)
+    private static void ClearUpByGO(GameObject go, Func<Material, bool> filter = null)
     {
-        var ret = false;
-        var error = string.Empty;
+        var matPathList = new List<string>();
+        FindMatPaths(go, matPathList);
+        ClearUpMatList(matPathList, out var ret, out var error, filter);
+    }
+    
+    private static void ClearUpByPath(string matRootPath, Func<Material, bool> filter = null)
+    {
+        var matPathList = new List<string>();
+        FindMatPaths(matRootPath, matPathList);
+        ClearUpMatList(matPathList, out var ret, out var error, filter);
+    }
+
+    private static void ClearUpMatList(List<string> matPathList, out bool ret, out string error, Func<Material, bool> filter = null)
+    {
+        ret = false;
+        error = string.Empty;
         try
         {
             var matList = new List<Material>();
-            var matPathList = new List<string>();
-            FindMatPaths(matRootPath, matPathList);
-            var title = $"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUp)} [Analysing]";
+
+            var title = $"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUpByPath)} [Analysing]";
             for (int i = 0; i < matPathList.Count; i++)
             {
-                EditorUtility.DisplayProgressBar(title, $"{i + 1}/{matPathList.Count}", (float)(i + 1) / matPathList.Count);
+                EditorUtility.DisplayProgressBar(title, $"{i + 1}/{matPathList.Count}",
+                    (float)(i + 1) / matPathList.Count);
                 var assetPath = matPathList[i];
                 Material mat = null;
                 try
@@ -311,7 +375,7 @@ public class ClearUpMatPropKWTools : EditorWindow
             //var sbLog = GetStrBuilder();
             StringBuilder sbLog = null;
 
-            title = $"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUp)} [Clearing]";
+            title = $"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUpByPath)} [Clearing]";
             var anyChanged = false;
             for (int i = 0; i < matList.Count; i++)
             {
@@ -326,28 +390,33 @@ public class ClearUpMatPropKWTools : EditorWindow
                 {
                     changed = true;
                 }
+
                 // clears-up keywords
                 if (ClearUpKeywords(mat, sObj, sbLog))
                 {
                     changed = true;
                 }
+
                 if (changed)
                 {
                     anyChanged = true;
                     sObj.ApplyModifiedProperties();
                     EditorUtility.SetDirty(mat);
                 }
+
                 if (sbLog != null)
                 {
                     Debug.Log(sbLog.ToString());
                     sbLog.Clear();
                 }
             }
+
             if (anyChanged)
             {
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
+
             ret = true;
             error = string.Empty;
         }
@@ -361,15 +430,37 @@ public class ClearUpMatPropKWTools : EditorWindow
             EditorUtility.ClearProgressBar();
             if (ret)
             {
-                Debug.Log($"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUp)} Successfully!");
+                Debug.Log($"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUpByPath)} Successfully!");
             }
             else
             {
-                Debug.LogError($"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUp)} Failured, Error : {error}");
+                Debug.LogError($"{nameof(ClearUpMatPropKWTools)}.{nameof(ClearUpByPath)} Failured, Error : {error}");
             }
         }
     }
 
+    private static void FindMatPaths(GameObject go, List<string> pathList)
+    {
+        _s_pListRenderHelper.Clear();
+        go.GetComponentsInChildren<Renderer>(true, _s_pListRenderHelper);
+        foreach (var item in _s_pListRenderHelper)
+        {
+            var mats = item.sharedMaterials;
+            foreach (var mat in mats)
+            {
+                var path = AssetDatabase.GetAssetPath(mat);
+                var ext = System.IO.Path.GetExtension(path).ToLower();
+                if (ext == ".fbx" || ext == ".obj") continue;
+                var isExcludePath = IsExcludePath(path);
+
+                if (!isExcludePath)
+                {
+                    pathList.Add(path);
+                }
+            }
+        }
+    }
+    
     private static void FindMatPaths(string rootPath, List<string> pathList)
     {
         var guids = AssetDatabase.FindAssets("t:Material", new string[] { rootPath });
@@ -378,19 +469,27 @@ public class ClearUpMatPropKWTools : EditorWindow
             var path = AssetDatabase.GUIDToAssetPath(guid);
             var ext = System.IO.Path.GetExtension(path).ToLower();
             if (ext == ".fbx" || ext == ".obj") continue;
-            var isExcludePath = false;
-            foreach (var excludePath in excludePathList)
-            {
-                if (path.StartsWith(excludePath))
-                {
-                    isExcludePath = true;
-                    break;
-                }
-            }
+            var isExcludePath = IsExcludePath(path);
+
             if (!isExcludePath)
             {
                 pathList.Add(path);
             }
         }
+    }
+
+    private static bool IsExcludePath(string path)
+    {
+        var isExcludePath = false;
+        foreach (var excludePath in _s_pListExcludePathList)
+        {
+            if (path.StartsWith(excludePath))
+            {
+                isExcludePath = true;
+                break;
+            }
+        }
+
+        return isExcludePath;
     }
 }
