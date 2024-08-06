@@ -201,29 +201,71 @@ public class ClearUpMatPropKWTools : EditorWindow
             sbLog.AppendLine($"validated kw : {string.Join(",", validatedKW_Hashset_helper.ToArray())}");
 
         // 删除材质中存在，但是Shader中却不存在的Keyword
-        keywords_temp_helper.Clear();
-        keywords_temp_helper.AddRange(mat.shaderKeywords);
+        var usingKeyworldList = keywords_temp_helper;
+        usingKeyworldList.Clear();
+
+        // jave.lin : prechecking invalidate keywords
+        var precheckProp = sObj.FindProperty("m_InvalidKeywords");
+        if (precheckProp != null)
+        {
+            changed = precheckProp.arraySize != 0;
+        }
+
+        // 提取 keywords
+        usingKeyworldList.AddRange(mat.shaderKeywords.Distinct());
+        if (!changed && usingKeyworldList.Count != mat.shaderKeywords.Length)
+        {
+            changed = true;
+        }
 
         if (sbLog != null)
             sbLog.Append("delete key words: ");
 
-        for (int i = keywords_temp_helper.Count - 1; i > -1; i--)
+        for (int i = usingKeyworldList.Count - 1; i > -1; i--)
         {
-            var keyword = keywords_temp_helper[i];
+            var keyword = usingKeyworldList[i];
             if (validatedKW_Hashset_helper.Contains(keyword))
                 continue;
             if (sbLog != null)
                 sbLog.Append(keyword + ",");
             //mat.DisableKeyword(keyword);
-            keywords_temp_helper.RemoveAt(i);
+            usingKeyworldList.RemoveAt(i);
             changed = true;
         }
 
         if (changed)
         {
+            // jave.lin : 兼容一下低版本，和 高版本的字段区别
             var m_ShaderKeywordsProps = sObj.FindProperty("m_ShaderKeywords");
-            //Debug.Log(m_ShaderKeywordsProps.stringValue);
-            m_ShaderKeywordsProps.stringValue = string.Join(" ", keywords_temp_helper);
+            if (m_ShaderKeywordsProps != null)
+            {
+                //Debug.Log(m_ShaderKeywordsProps.stringValue);
+                m_ShaderKeywordsProps.stringValue = string.Join(" ", usingKeyworldList);
+            }
+            // jave.lin : 高版本中，这块的属性名字都变了
+            else
+            {
+                // clearing invalidate keywords
+                var invalidKeywords = sObj.FindProperty("m_InvalidKeywords");
+                if (invalidKeywords != null)
+                {
+                    invalidKeywords.ClearArray();
+                }
+
+                // adding validated keywords
+                var validKeywords = sObj.FindProperty("m_ValidKeywords");
+                if (validKeywords != null)
+                {
+                    validKeywords.ClearArray();
+
+                    foreach (var keyword in usingKeyworldList)
+                    {
+                        validKeywords.InsertArrayElementAtIndex(validKeywords.arraySize);
+                        validKeywords.GetArrayElementAtIndex(validKeywords.arraySize - 1).stringValue = keyword;
+                    }
+                }
+
+            }
         }
 
         return changed;
