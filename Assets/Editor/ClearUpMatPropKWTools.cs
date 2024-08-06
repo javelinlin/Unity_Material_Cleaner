@@ -22,11 +22,11 @@ public static class ClearupMatPropKWTools_EXT
 
 public class ClearUpMatPropKWTools : EditorWindow
 {
-    [MenuItem("实用工具/Materials/材质[Prop&KW]清理器...")]
+    [MenuItem("Tools/Materials/MaterialCleaner...")]
     private static void _Show()
     {
         var win = EditorWindow.GetWindow<ClearUpMatPropKWTools>();
-        win.titleContent = new GUIContent("材质[Prop&KW]清理器");
+        win.titleContent = new GUIContent("MaterialCleaner");
         win.Show();
     }
 
@@ -47,30 +47,36 @@ public class ClearUpMatPropKWTools : EditorWindow
 
         var temp_assetRootPath = string.IsNullOrEmpty(assetRootPath) ? "Assets" : assetRootPath;
 
-        {
-            GUILayout.Label("Exclude Path:");
-            var src_enabled = GUI.enabled;
-            GUI.enabled = false;
-            EditorGUI.indentLevel++;
-            foreach (var excludePath in excludePathList)
-            {
-                GUILayout.TextField(excludePath);
-            }
-            EditorGUI.indentLevel--;
-            GUI.enabled = src_enabled;
-        }
+        // {
+        //     GUILayout.Label("Exclude Path:");
+        //     var src_enabled = GUI.enabled;
+        //     GUI.enabled = false;
+        //     EditorGUI.indentLevel++;
+        //     foreach (var excludePath in excludePathList)
+        //     {
+        //         GUILayout.TextField(excludePath);
+        //     }
+        //     EditorGUI.indentLevel--;
+        //     GUI.enabled = src_enabled;
+        // }
 
-        if (GUILayout.Button("清理 所有 材质"))
+        if (GUILayout.Button("Clear"))
         {
             ClearUp(temp_assetRootPath, All_Shader_Filter);
         }
-        if (GUILayout.Button("清理 PBR 材质"))
-        {
-            ClearUp(temp_assetRootPath, PBR_Shader_Filter);
-        }
+        
+        var color = Color.green;
+        var clear_rang_str = temp_assetRootPath;
+        GUILayout.Label($"<color=#AAAAAA>You Will Clear [<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{clear_rang_str}</color>] path. </color>", new GUIStyle { richText = true });
+        
+        // if (GUILayout.Button("清理 PBR 材质"))
+        // {
+        //     ClearUp(temp_assetRootPath, PBR_Shader_Filter);
+        // }
     }
 
-    [MenuItem("实用工具/Materials/执行清理所有材质")]
+    // [MenuItem("实用工具/Materials/执行清理所有材质")]
+    // 这个可以在 发布打包资源前，调用一下
     public static void ClearAllMat()
     {
         ClearUp("Assets", All_Shader_Filter);
@@ -79,15 +85,15 @@ public class ClearUpMatPropKWTools : EditorWindow
     private static UnityEngine.Object assetRootPathObj;
     private static List<string> excludePathList = new List<string>() 
     {
-        "Assets/CasualGame",
-        "Assets/Ultimate Game Tools",
-        "Assets/StreamingAssets",
+        // "Assets/CasualGame",
+        // "Assets/Ultimate Game Tools",
+        // "Assets/StreamingAssets",
     };
-
-    private static bool PBR_Shader_Filter(Material mat)
-    {
-        return mat.shader.name.Contains("PBR");
-    }
+    //
+    // private static bool PBR_Shader_Filter(Material mat)
+    // {
+    //     return mat.shader.name.Contains("PBR");
+    // }
 
     private static bool All_Shader_Filter(Material mat)
     {
