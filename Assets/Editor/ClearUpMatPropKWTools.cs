@@ -9,6 +9,19 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
+public struct ClearUp_GUIStyleRegion : IDisposable
+{
+    public ClearUp_GUIStyleRegion(GUIStyle style)
+    {
+        EditorGUILayout.BeginVertical(style);
+    }
+
+    public void Dispose()
+    {
+        EditorGUILayout.EndVertical();
+    }
+}
+
 public struct EnabledRegion : IDisposable
 {
     private bool srcVale;
@@ -64,66 +77,76 @@ public class ClearUpMatPropKWTools : EditorWindow
     
     private void OnGUI()
     {
-        { // clear path
-            var assetRootPath = string.Empty;
-            using (var hr = new HorizontalRegion(1))
+        {
+            // clear path
+            using (var style = new ClearUp_GUIStyleRegion(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("AssetRootPath(Default : Assets)", GUILayout.Width(190));
-                var new_assetRootPathObj =
-                    EditorGUILayout.ObjectField(_s_pAssetRootPathObj, typeof(UnityEngine.Object), false);
-                if (_s_pAssetRootPathObj != new_assetRootPathObj)
+                var assetRootPath = string.Empty;
+                using (var hr = new HorizontalRegion(1))
                 {
-                    _s_pAssetRootPathObj = new_assetRootPathObj;
-                    //Debug.Log($"Role Folder Name : {assetRootPathObj.name}");
+                    EditorGUILayout.LabelField("AssetRootPath(Default : Assets)", GUILayout.Width(190));
+                    var new_assetRootPathObj =
+                        EditorGUILayout.ObjectField(_s_pAssetRootPathObj, typeof(UnityEngine.Object), false);
+                    if (_s_pAssetRootPathObj != new_assetRootPathObj)
+                    {
+                        _s_pAssetRootPathObj = new_assetRootPathObj;
+                        //Debug.Log($"Role Folder Name : {assetRootPathObj.name}");
+                    }
                 }
-            }
 
-            if (_s_pAssetRootPathObj != null)
-            {
-                assetRootPath = AssetDatabase.GetAssetPath(_s_pAssetRootPathObj);
-            }
+                if (_s_pAssetRootPathObj != null)
+                {
+                    assetRootPath = AssetDatabase.GetAssetPath(_s_pAssetRootPathObj);
+                }
 
-            var temp_assetRootPath = string.IsNullOrEmpty(assetRootPath) ? "Assets" : assetRootPath;
-            if (GUILayout.Button("Clear mats of the Path"))
-            {
-                ClearUpByPath(temp_assetRootPath, All_Shader_Filter);
-            }
+                var temp_assetRootPath = string.IsNullOrEmpty(assetRootPath) ? "Assets" : assetRootPath;
+                if (GUILayout.Button("Clear mats of the Path"))
+                {
+                    ClearUpByPath(temp_assetRootPath, All_Shader_Filter);
+                }
 
-            var color = Color.green;
-            ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
-            var clear_rang_str = temp_assetRootPath;
-            GUILayout.Label(
-                _RichTextWrapper($"You Will Clear {_RichTextWrapper(clear_rang_str, content_coolor)} path.", color),
-                new GUIStyle { richText = true });
+                var color = Color.green;
+                ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
+                var clear_rang_str = temp_assetRootPath;
+                GUILayout.Label(
+                    _RichTextWrapper($"You Will Clear {_RichTextWrapper(clear_rang_str, content_coolor)} path.", color),
+                    new GUIStyle { richText = true });
+            }
         }
 
-        { // clear materials of the scene obj
-            GameObject new_assetRootPathObj = null;
-            using (var hr = new HorizontalRegion(1))
+        {
+            // clear materials of the scene obj
+            using (var style = new ClearUp_GUIStyleRegion(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("GameObject(project asset, or scene object):", GUILayout.Width(250));
-                new_assetRootPathObj = EditorGUILayout.ObjectField(_s_pAssetOrSceneObj, typeof(UnityEngine.GameObject), true) as GameObject;
-                if (_s_pAssetOrSceneObj != new_assetRootPathObj)
+                GameObject new_assetRootPathObj = null;
+                using (var hr = new HorizontalRegion(1))
                 {
-                    _s_pAssetOrSceneObj = new_assetRootPathObj;
-                    //Debug.Log($"Role Folder Name : {projectAssetOrSceneObj.name}");
+                    EditorGUILayout.LabelField("GameObject(project asset, or scene object):", GUILayout.Width(250));
+                    new_assetRootPathObj =
+                        EditorGUILayout.ObjectField(_s_pAssetOrSceneObj, typeof(UnityEngine.GameObject), true) as
+                            GameObject;
+                    if (_s_pAssetOrSceneObj != new_assetRootPathObj)
+                    {
+                        _s_pAssetOrSceneObj = new_assetRootPathObj;
+                        //Debug.Log($"Role Folder Name : {projectAssetOrSceneObj.name}");
+                    }
                 }
-            }
 
-            using (var enabled = new EnabledRegion(new_assetRootPathObj != null))
-            {
-                if (GUILayout.Button("Clear mats of the GO"))
+                using (var enabled = new EnabledRegion(new_assetRootPathObj != null))
                 {
-                    ClearUpByGO(new_assetRootPathObj, All_Shader_Filter);
+                    if (GUILayout.Button("Clear mats of the GO"))
+                    {
+                        ClearUpByGO(new_assetRootPathObj, All_Shader_Filter);
+                    }
                 }
-            }
 
-            var color = Color.green;
-            ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
-            var goName = new_assetRootPathObj != null ? new_assetRootPathObj.name : "null";
-            GUILayout.Label(
-                _RichTextWrapper($"You Will Clear {_RichTextWrapper($"GO:{goName}", content_coolor)} path.", color),
-                new GUIStyle { richText = true });
+                var color = Color.green;
+                ColorUtility.TryParseHtmlString("0xAAAAAA", out var content_coolor);
+                var goName = new_assetRootPathObj != null ? new_assetRootPathObj.name : "null";
+                GUILayout.Label(
+                    _RichTextWrapper($"You Will Clear {_RichTextWrapper($"GO:{goName}", content_coolor)}.", color),
+                    new GUIStyle { richText = true });
+            }
         }
     }
 
@@ -150,7 +173,7 @@ public class ClearUpMatPropKWTools : EditorWindow
 
     private static bool All_Shader_Filter(Material mat)
     {
-        return true;
+        return null != mat;
     }
 
     private static bool ClearInvalidatedProps(Material mat, SerializedProperty sProp, StringBuilder sb = null)
@@ -331,7 +354,21 @@ public class ClearUpMatPropKWTools : EditorWindow
     private static void ClearUpByPath(string matRootPath, Func<Material, bool> filter = null)
     {
         var matPathList = new List<string>();
-        FindMatPaths(matRootPath, matPathList);
+        if (AssetDatabase.IsValidFolder(matRootPath))
+        {
+            FindMatPaths(matRootPath, matPathList);
+        }
+        else
+        {
+            if (!IsExcludedPath(matRootPath))
+            {
+                var matObj = AssetDatabase.LoadAssetAtPath<Material>(matRootPath);
+                if (matObj != null)
+                {
+                    matPathList.Add(matRootPath);
+                }
+            }
+        }
         ClearUpMatList(matPathList, out var ret, out var error, filter);
     }
 
@@ -448,12 +485,9 @@ public class ClearUpMatPropKWTools : EditorWindow
             var mats = item.sharedMaterials;
             foreach (var mat in mats)
             {
+                if (null == mat) continue;
                 var path = AssetDatabase.GetAssetPath(mat);
-                var ext = System.IO.Path.GetExtension(path).ToLower();
-                if (ext == ".fbx" || ext == ".obj") continue;
-                var isExcludePath = IsExcludePath(path);
-
-                if (!isExcludePath)
+                if (!IsExcludedPath(path))
                 {
                     pathList.Add(path);
                 }
@@ -467,29 +501,31 @@ public class ClearUpMatPropKWTools : EditorWindow
         foreach (var guid in guids)
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
-            var ext = System.IO.Path.GetExtension(path).ToLower();
-            if (ext == ".fbx" || ext == ".obj") continue;
-            var isExcludePath = IsExcludePath(path);
-
-            if (!isExcludePath)
+            if (!IsExcludedPath(path))
             {
                 pathList.Add(path);
             }
         }
     }
 
-    private static bool IsExcludePath(string path)
+    private static bool IsExcludedPath(string path)
     {
-        var isExcludePath = false;
+        // excluded by cfg list
         foreach (var excludePath in _s_pListExcludePathList)
         {
             if (path.StartsWith(excludePath))
             {
-                isExcludePath = true;
-                break;
+                return false;
             }
         }
-
-        return isExcludePath;
+        
+        // exclude by asset type
+        var ext = System.IO.Path.GetExtension(path).ToLower();
+        if (ext == ".fbx" || ext == ".obj")
+        {
+            return false;
+        }
+        
+        return true;
     }
 }
