@@ -523,9 +523,9 @@ public class ClearUpMatPropKWTools : EditorWindow
         var ext = System.IO.Path.GetExtension(path).ToLower();
         if (ext == ".fbx" || ext == ".obj")
         {
-            return false;
+            return true;
         }
         
-        return true;
+        return false;
     }
 }
